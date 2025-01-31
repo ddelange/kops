@@ -1,11 +1,8 @@
 module k8s.io/kops/tests/e2e
 
-go 1.22.7
+go 1.23.5
 
 replace k8s.io/kops => ../../.
-
-// These should match the go.mod from k8s.io/kops
-replace k8s.io/client-go => k8s.io/client-go v0.31.0
 
 require (
 	github.com/blang/semver/v4 v4.0.0
@@ -164,7 +161,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.13.0 // indirect
-	github.com/gophercloud/gophercloud v1.14.1 // indirect
+	github.com/gophercloud/gophercloud/v2 v2.2.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
@@ -296,7 +293,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.31.1 // indirect
-	k8s.io/client-go v11.0.0+incompatible // indirect
+	k8s.io/client-go v0.31.1 // indirect
 	k8s.io/cloud-provider v0.31.0 // indirect
 	k8s.io/cloud-provider-gcp/providers v0.28.2 // indirect
 	k8s.io/component-base v0.31.1 // indirect

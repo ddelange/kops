@@ -100,7 +100,7 @@ kops create cluster [CLUSTER] [flags]
       --kubernetes-version string               Version of Kubernetes to run (defaults to version in channel)
       --network-cidr strings                    Network CIDR(s) to use
       --network-id string                       Shared Network or VPC to use
-      --networking string                       Networking mode.  kubenet, external, flannel-vxlan (or flannel), flannel-udp, calico, canal, kube-router, amazonvpc, cilium, cilium-etcd, cni. (default "cilium")
+      --networking string                       Networking mode.  kubenet, external, flannel-vxlan (or flannel), flannel-udp, calico, canal, kube-router, amazonvpc, cilium, cilium-etcd, kindnet, cni. (default "cilium")
       --node-count int32                        Total number of worker nodes. Defaults to one node per zone
       --node-image string                       Machine image for worker nodes. Takes precedence over --image
       --node-security-groups strings            Additional pre-created security groups to add to worker nodes.
@@ -122,7 +122,7 @@ kops create cluster [CLUSTER] [flags]
       --ssh-access strings                      Restrict SSH access to this CIDR.  If not set, uses the value of the admin-access flag.
       --ssh-public-key string                   SSH public key to use
       --subnets strings                         Shared subnets to use
-      --target string                           Valid targets: direct, terraform. Set this flag to terraform if you want kOps to generate terraform (default "direct")
+      --target target                           Valid targets: "direct", "terraform". Set this flag to "terraform" if you want kOps to generate terraform (default direct)
   -t, --topology string                         Network topology for the cluster: 'public' or 'private'. Defaults to 'public' for IPv4 clusters and 'private' for IPv6 clusters.
       --unset strings                           Directly unset values in the spec
       --utility-subnets strings                 Shared utility subnets to use

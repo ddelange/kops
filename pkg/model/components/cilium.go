@@ -40,7 +40,7 @@ func (b *CiliumOptionsBuilder) BuildOptions(o *kops.Cluster) error {
 	}
 
 	if c.Version == "" {
-		c.Version = "v1.16.2"
+		c.Version = "v1.16.5"
 	}
 
 	if c.EnableEndpointHealthChecking == nil {
@@ -137,6 +137,10 @@ func (b *CiliumOptionsBuilder) BuildOptions(o *kops.Cluster) error {
 
 	if c.EnableL7Proxy == nil {
 		c.EnableL7Proxy = fi.PtrTo(true)
+	}
+
+	if c.EnableLocalRedirectPolicy == nil {
+		c.EnableLocalRedirectPolicy = fi.PtrTo(false)
 	}
 
 	if c.DisableCNPStatusUpdates == nil {

@@ -82,6 +82,7 @@ type NetworkingSpec struct {
 	Cilium     *CiliumNetworkingSpec       `json:"cilium,omitempty"`
 	LyftVPC    *kops.LyftVPCNetworkingSpec `json:"-"`
 	GCP        *GCPNetworkingSpec          `json:"gcp,omitempty"`
+	Kindnet    *KindnetNetworkingSpec      `json:"kindnet,omitempty"`
 }
 
 // KubenetNetworkingSpec is the specification for kubenet networking, largely integrated but intended to replace classic
@@ -333,6 +334,11 @@ type CiliumNetworkingSpec struct {
 	// EnableL7Proxy enables L7 proxy for L7 policy enforcement.
 	// Default: true
 	EnableL7Proxy *bool `json:"enableL7Proxy,omitempty"`
+	// EnableLocalRedirectPolicy that enables pod traffic destined to an IP address and port/protocol
+	// tuple or Kubernetes service to be redirected locally to backend pod(s) within a node, using eBPF.
+	// https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/
+	// Default: false
+	EnableLocalRedirectPolicy *bool `json:"enableLocalRedirectPolicy,omitempty"`
 	// EnableBPFMasquerade enables masquerading packets from endpoints leaving the host with BPF instead of iptables.
 	// Default: false
 	EnableBPFMasquerade *bool `json:"enableBPFMasquerade,omitempty"`
@@ -505,3 +511,21 @@ type HubbleSpec struct {
 
 // GCPNetworkingSpec is the specification of GCP's native networking mode, using IP aliases.
 type GCPNetworkingSpec struct{}
+
+// KindnetNetworkingSpec configures Kindnet settings.
+type KindnetNetworkingSpec struct {
+	Version                      string                 `json:"version,omitempty"`
+	NetworkPolicies              *bool                  `json:"networkPolicies,omitempty"`
+	AdminNetworkPolicies         *bool                  `json:"adminNetworkPolicies,omitempty"`
+	BaselineAdminNetworkPolicies *bool                  `json:"baselineAdminNetworkPolicies,omitempty"`
+	DNSCaching                   *bool                  `json:"dnsCaching,omitempty"`
+	NAT64                        *bool                  `json:"nat64,omitempty"`
+	FastPathThreshold            *int32                 `json:"fastPathThreshold,omitempty"`
+	Masquerade                   *KindnetMasqueradeSpec `json:"masquerade,omitempty"`
+	LogLevel                     *int32                 `json:"logLevel,omitempty"`
+}
+
+type KindnetMasqueradeSpec struct {
+	Enabled            *bool    `json:"enabled,omitempty"`
+	NonMasqueradeCIDRs []string `json:"nonMasqueradeCIDRs,omitempty"`
+}

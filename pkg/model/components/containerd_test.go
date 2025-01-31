@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	kopsapi "k8s.io/kops/pkg/apis/kops"
-	"k8s.io/kops/pkg/apis/kops/util"
 	"k8s.io/kops/pkg/assets"
 	"k8s.io/kops/util/pkg/vfs"
 )
@@ -45,22 +44,17 @@ func Test_Build_Containerd_Supported_Version(t *testing.T) {
 	for _, v := range kubernetesVersions {
 
 		c := buildContainerdCluster(v)
-		b := assets.NewAssetBuilder(vfs.Context, c.Spec.Assets, c.Spec.KubernetesVersion, false)
+		b := assets.NewAssetBuilder(vfs.Context, c.Spec.Assets, false)
 
-		version, err := util.ParseKubernetesVersion(v)
+		optionsContext, err := NewOptionsContext(c, b, b.KubeletSupportedVersion)
 		if err != nil {
-			t.Fatalf("unexpected error from ParseKubernetesVersion %s: %v", v, err)
+			t.Fatalf("unexpected error from NewOptionsContext: %v", err)
 		}
-
 		ob := &ContainerdOptionsBuilder{
-			&OptionsContext{
-				AssetBuilder:      b,
-				KubernetesVersion: *version,
-			},
+			OptionsContext: optionsContext,
 		}
 
-		err = ob.BuildOptions(c)
-		if err != nil {
+		if err := ob.BuildOptions(c); err != nil {
 			t.Fatalf("unexpected error from BuildOptions: %v", err)
 		}
 

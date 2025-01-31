@@ -313,6 +313,18 @@ func TestSetupNetworking(t *testing.T) {
 				},
 			},
 		},
+		{
+			options: NewClusterOptions{
+				Networking: "kindnet",
+			},
+			expected: api.Cluster{
+				Spec: api.ClusterSpec{
+					Networking: api.NetworkingSpec{
+						Kindnet: &api.KindnetNetworkingSpec{},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -441,7 +453,7 @@ func TestDefaultImage(t *testing.T) {
 		{
 			cluster: &api.Cluster{
 				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.25.0",
+					KubernetesVersion: "v1.32.0",
 					CloudProvider: api.CloudProviderSpec{
 						AWS: &api.AWSSpec{},
 					},
@@ -453,7 +465,7 @@ func TestDefaultImage(t *testing.T) {
 		{
 			cluster: &api.Cluster{
 				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.25.0",
+					KubernetesVersion: "v1.32.0",
 					CloudProvider: api.CloudProviderSpec{
 						AWS: &api.AWSSpec{},
 					},
@@ -465,7 +477,7 @@ func TestDefaultImage(t *testing.T) {
 		{
 			cluster: &api.Cluster{
 				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.25.0",
+					KubernetesVersion: "v1.32.0",
 					CloudProvider: api.CloudProviderSpec{
 						Azure: &api.AzureSpec{},
 					},
@@ -477,7 +489,7 @@ func TestDefaultImage(t *testing.T) {
 		{
 			cluster: &api.Cluster{
 				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.25.0",
+					KubernetesVersion: "v1.32.0",
 					CloudProvider: api.CloudProviderSpec{
 						GCE: &api.GCESpec{},
 					},
@@ -489,74 +501,38 @@ func TestDefaultImage(t *testing.T) {
 		{
 			cluster: &api.Cluster{
 				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.25.0",
+					KubernetesVersion: "v1.32.0",
 					CloudProvider: api.CloudProviderSpec{
 						DO: &api.DOSpec{},
 					},
 				},
 			},
 			architecture: architectures.ArchitectureAmd64,
-			expected:     defaultDOImageFocal,
+			expected:     defaultDOImageNoble,
 		},
 		{
 			cluster: &api.Cluster{
 				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.27.0",
-					CloudProvider: api.CloudProviderSpec{
-						DO: &api.DOSpec{},
-					},
-				},
-			},
-			architecture: architectures.ArchitectureAmd64,
-			expected:     defaultDOImageJammy,
-		},
-		{
-			cluster: &api.Cluster{
-				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.25.0",
+					KubernetesVersion: "v1.32.0",
 					CloudProvider: api.CloudProviderSpec{
 						Hetzner: &api.HetznerSpec{},
 					},
 				},
 			},
 			architecture: architectures.ArchitectureAmd64,
-			expected:     defaultHetznerImageFocal,
+			expected:     defaultHetznerImageNoble,
 		},
 		{
 			cluster: &api.Cluster{
 				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.27.0",
-					CloudProvider: api.CloudProviderSpec{
-						Hetzner: &api.HetznerSpec{},
-					},
-				},
-			},
-			architecture: architectures.ArchitectureAmd64,
-			expected:     defaultHetznerImageJammy,
-		},
-		{
-			cluster: &api.Cluster{
-				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.25.0",
+					KubernetesVersion: "v1.32.0",
 					CloudProvider: api.CloudProviderSpec{
 						Scaleway: &api.ScalewaySpec{},
 					},
 				},
 			},
 			architecture: architectures.ArchitectureAmd64,
-			expected:     defaultScalewayImageFocal,
-		},
-		{
-			cluster: &api.Cluster{
-				Spec: api.ClusterSpec{
-					KubernetesVersion: "v1.27.0",
-					CloudProvider: api.CloudProviderSpec{
-						Scaleway: &api.ScalewaySpec{},
-					},
-				},
-			},
-			architecture: architectures.ArchitectureAmd64,
-			expected:     defaultScalewayImageJammy,
+			expected:     defaultScalewayImageNoble,
 		},
 	}
 

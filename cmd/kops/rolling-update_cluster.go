@@ -30,7 +30,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/kops/cmd/kops/util"
@@ -238,21 +237,22 @@ func RunRollingUpdateCluster(ctx context.Context, f *util.Factory, out io.Writer
 		return err
 	}
 
-	contextName := cluster.ObjectMeta.Name
-	clientGetter := genericclioptions.NewConfigFlags(true)
-	clientGetter.Context = &contextName
-
-	config, err := clientGetter.ToRESTConfig()
-	if err != nil {
-		return fmt.Errorf("cannot load kubecfg settings for %q: %v", contextName, err)
-	}
-
 	var nodes []v1.Node
 	var k8sClient kubernetes.Interface
 	if !options.CloudOnly {
-		k8sClient, err = kubernetes.NewForConfig(config)
+		restConfig, err := f.RESTConfig(cluster)
 		if err != nil {
-			return fmt.Errorf("cannot build kube client for %q: %v", contextName, err)
+			return fmt.Errorf("getting rest config: %w", err)
+		}
+
+		httpClient, err := f.HTTPClient(cluster)
+		if err != nil {
+			return fmt.Errorf("getting http client: %w", err)
+		}
+
+		k8sClient, err = kubernetes.NewForConfigAndClient(restConfig, httpClient)
+		if err != nil {
+			return fmt.Errorf("getting kubernetes client: %w", err)
 		}
 
 		nodeList, err := k8sClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
@@ -348,7 +348,6 @@ func RunRollingUpdateCluster(ctx context.Context, f *util.Factory, out io.Writer
 
 	d := &instancegroups.RollingUpdateCluster{
 		Clientset:         clientset,
-		Ctx:               ctx,
 		Cluster:           cluster,
 		MasterInterval:    options.ControlPlaneInterval,
 		NodeInterval:      options.NodeInterval,
@@ -449,14 +448,19 @@ func RunRollingUpdateCluster(ctx context.Context, f *util.Factory, out io.Writer
 
 	var clusterValidator validation.ClusterValidator
 	if !options.CloudOnly {
-		clusterValidator, err = validation.NewClusterValidator(cluster, cloud, list, config.Host, k8sClient)
+		restConfig, err := f.RESTConfig(cluster)
+		if err != nil {
+			return fmt.Errorf("getting rest config: %w", err)
+		}
+
+		clusterValidator, err = validation.NewClusterValidator(cluster, cloud, list, nil, nil, restConfig, k8sClient)
 		if err != nil {
 			return fmt.Errorf("cannot create cluster validator: %v", err)
 		}
 	}
 	d.ClusterValidator = clusterValidator
 
-	return d.RollingUpdate(groups, list)
+	return d.RollingUpdate(ctx, groups, list)
 }
 
 func completeInstanceGroup(f commandutils.Factory, selectedInstanceGroups *[]string, selectedInstanceGroupRoles *[]string) func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

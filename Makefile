@@ -66,16 +66,16 @@ GITSHA := $(shell cd ${KOPS_ROOT}; git describe --always)
 # We lock the versions of our controllers also
 # We need to keep in sync with:
 #   pkg/model/components/etcdmanager/model.go
-KOPS_UTILS_CP_TAG=1.31.0-alpha.1
+KOPS_UTILS_CP_TAG=1.32.0-beta.1
 KOPS_UTILS_CP_PUSH_TAG=$(shell tools/get_workspace_status.sh | grep STABLE_KOPS_UTILS_CP_TAG | awk '{print $$2}')
 #   upup/models/cloudup/resources/addons/dns-controller/
-DNS_CONTROLLER_TAG=1.31.0-alpha.1
+DNS_CONTROLLER_TAG=1.32.0-beta.1
 DNS_CONTROLLER_PUSH_TAG=$(shell tools/get_workspace_status.sh | grep STABLE_DNS_CONTROLLER_TAG | awk '{print $$2}')
 #   upup/models/cloudup/resources/addons/kops-controller.addons.k8s.io/
-KOPS_CONTROLLER_TAG=1.31.0-alpha.1
+KOPS_CONTROLLER_TAG=1.32.0-beta.1
 KOPS_CONTROLLER_PUSH_TAG=$(shell tools/get_workspace_status.sh | grep STABLE_KOPS_CONTROLLER_TAG | awk '{print $$2}')
 #   pkg/model/components/kubeapiserver/model.go
-KUBE_APISERVER_HEALTHCHECK_TAG=1.31.0-alpha.1
+KUBE_APISERVER_HEALTHCHECK_TAG=1.32.0-beta.1
 KUBE_APISERVER_HEALTHCHECK_PUSH_TAG=$(shell tools/get_workspace_status.sh | grep STABLE_KUBE_APISERVER_HEALTHCHECK_TAG | awk '{print $$2}')
 
 CGO_ENABLED=0
@@ -246,7 +246,7 @@ crossbuild-channels: channels-amd64 channels-arm64
 
 .PHONY: upload
 upload: version-dist # Upload kops to S3
-	aws s3 sync --acl public-read ${UPLOAD}/ ${S3_BUCKET}
+	aws s3 sync --no-progress --acl public-read ${UPLOAD}/ ${S3_BUCKET}
 
 # gcs-upload builds kops and uploads to GCS
 .PHONY: gcs-upload
@@ -327,16 +327,6 @@ gomod:
 	cd hack; go mod tidy
 	cd tests/e2e; go mod tidy
 	cd tools/otel/traceserver; go mod tidy
-
-.PHONY: goget
-goget:
-	go get $(shell go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -mod=mod -m all | grep -v spotinst-sdk-go)
-	cd hack; go get $(shell go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -mod=mod -m all)
-	cd tests/e2e; go get $(shell go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -mod=mod -m all | grep -v kubetest2)
-	cd tools/otel/traceserver; go get $(shell go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -mod=mod -m all)
-
-.PHONY: depup
-depup: goget gomod
 
 .PHONY: gofmt
 gofmt:

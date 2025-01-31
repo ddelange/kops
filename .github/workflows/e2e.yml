@@ -17,12 +17,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           path: ${{ env.GOPATH }}/src/k8s.io/kops
 
       - name: Set up go
-        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
         with:
           go-version-file: '${{ env.GOPATH }}/src/k8s.io/kops/go.mod'
 
@@ -36,5 +36,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts
+          name: tests-e2e-scenarios-bare-metal
           path: /tmp/artifacts/

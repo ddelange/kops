@@ -16,7 +16,12 @@ limitations under the License.
 
 package kops
 
-import "k8s.io/apimachinery/pkg/api/resource"
+import (
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
+	"k8s.io/kops/util/pkg/reflectutils"
+)
 
 // NetworkingSpec configures networking.
 type NetworkingSpec struct {
@@ -78,6 +83,17 @@ type NetworkingSpec struct {
 	Cilium     *CiliumNetworkingSpec     `json:"cilium,omitempty"`
 	LyftVPC    *LyftVPCNetworkingSpec    `json:"lyftvpc,omitempty"`
 	GCP        *GCPNetworkingSpec        `json:"gcp,omitempty"`
+	Kindnet    *KindnetNetworkingSpec    `json:"kindnet,omitempty"`
+}
+
+// ConfiguredOptions returns the set of networking options that are configured (non-nil)
+// in the struct.  We only expect a single option to be configured.
+func (n *NetworkingSpec) ConfiguredOptions() sets.Set[string] {
+	options, err := reflectutils.FindSetFields(n, "classic", "kubenet", "external", "cni", "kopeio", "weave", "flannel", "calico", "canal", "kubeRouter", "romana", "amazonVPC", "cilium", "lyftvpc", "gcp", "kindnet")
+	if err != nil {
+		klog.Fatalf("error getting set fields: %v", err)
+	}
+	return options
 }
 
 // UsesKubenet returns true if our networking is derived from kubenet
@@ -370,6 +386,11 @@ type CiliumNetworkingSpec struct {
 	// EnableL7Proxy enables L7 proxy for L7 policy enforcement.
 	// Default: true
 	EnableL7Proxy *bool `json:"enableL7Proxy,omitempty"`
+	// EnableLocalRedirectPolicy that enables pod traffic destined to an IP address and port/protocol
+	// tuple or Kubernetes service to be redirected locally to backend pod(s) within a node, using eBPF.
+	// https://docs.cilium.io/en/stable/network/kubernetes/local-redirect-policy/
+	// Default: false
+	EnableLocalRedirectPolicy *bool `json:"enableLocalRedirectPolicy,omitempty"`
 	// EnableBPFMasquerade enables masquerading packets from endpoints leaving the host with BPF instead of iptables.
 	// Default: false
 	EnableBPFMasquerade *bool `json:"enableBPFMasquerade,omitempty"`
@@ -548,3 +569,29 @@ type LyftVPCNetworkingSpec struct {
 
 // GCPNetworkingSpec is the specification of GCP's native networking mode, using IP aliases.
 type GCPNetworkingSpec struct{}
+
+// KindnetNetworkingSpec configures Kindnet settings.
+type KindnetNetworkingSpec struct {
+	// Version is the version of the kindnet agent.
+	// Default: v1.8.0
+	Version string `json:"version,omitempty"`
+	// Enable network policies
+	NetworkPolicies              *bool `json:"networkPolicies,omitempty"`
+	AdminNetworkPolicies         *bool `json:"adminNetworkPolicies,omitempty"`
+	BaselineAdminNetworkPolicies *bool `json:"baselineAdminNetworkPolicies,omitempty"`
+	// enable dns caching
+	DNSCaching *bool `json:"dnsCaching,omitempty"`
+	// enable nat64 on ipv6 clusters
+	NAT64 *bool `json:"nat64,omitempty"`
+	// number of packets in a connection to offload it to the fast path
+	FastPathThreshold *int32 `json:"fastPathThreshold,omitempty"`
+	// node agent masquerading rules
+	Masquerade *KindnetMasqueradeSpec `json:"masquerade,omitempty"`
+	// log level
+	LogLevel *int32 `json:"logLevel,omitempty"`
+}
+
+type KindnetMasqueradeSpec struct {
+	Enabled            *bool    `json:"enabled,omitempty"`
+	NonMasqueradeCIDRs []string `json:"nonMasqueradeCIDRs,omitempty"`
+}

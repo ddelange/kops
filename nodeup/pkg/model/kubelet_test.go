@@ -222,10 +222,6 @@ func runKubeletBuilder(t *testing.T, context *fi.NodeupModelBuilderContext, node
 
 	{
 		task := builder.buildSystemdService()
-		if err != nil {
-			t.Fatalf("error from KubeletBuilder buildSystemdService: %v", err)
-			return
-		}
 		context.AddTask(task)
 	}
 }
@@ -250,8 +246,7 @@ func BuildNodeupModelContext(model *testutils.Model) (*NodeupModelContext, error
 		return nil, fmt.Errorf("error from BuildCloud: %v", err)
 	}
 
-	err = cloudup.PerformAssignments(model.Cluster, vfs.Context, cloud)
-	if err != nil {
+	if err := cloudup.PerformAssignments(model.Cluster, vfs.Context, cloud); err != nil {
 		return nil, fmt.Errorf("error from PerformAssignments: %v", err)
 	}
 
@@ -293,7 +288,7 @@ func BuildNodeupModelContext(model *testutils.Model) (*NodeupModelContext, error
 func mockedPopulateClusterSpec(ctx context.Context, c *kops.Cluster, instanceGroups []*kops.InstanceGroup, cloud fi.Cloud) (*kops.Cluster, error) {
 	vfs.Context.ResetMemfsContext(true)
 
-	assetBuilder := assets.NewAssetBuilder(vfs.Context, c.Spec.Assets, c.Spec.KubernetesVersion, false)
+	assetBuilder := assets.NewAssetBuilder(vfs.Context, c.Spec.Assets, false)
 	basePath, err := vfs.Context.BuildVfsPath("memfs://tests")
 	if err != nil {
 		return nil, fmt.Errorf("error building vfspath: %v", err)

@@ -51,7 +51,7 @@ func Test_RunKubeSchedulerBuilder(t *testing.T) {
 
 			builder := KubeSchedulerBuilder{
 				KopsModelContext: kopsModelContext,
-				AssetBuilder:     assets.NewAssetBuilder(vfs.Context, kopsModelContext.Cluster.Spec.Assets, kopsModelContext.Cluster.Spec.KubernetesVersion, false),
+				AssetBuilder:     assets.NewAssetBuilder(vfs.Context, kopsModelContext.Cluster.Spec.Assets, false),
 			}
 
 			if err := builder.Build(context); err != nil {
@@ -77,8 +77,9 @@ func LoadKopsModelContext(basedir string) (*model.KopsModelContext, error) {
 	}
 
 	kopsContext := &model.KopsModelContext{
-		IAMModelContext: iam.IAMModelContext{Cluster: spec.Cluster},
-		InstanceGroups:  spec.InstanceGroups,
+		IAMModelContext:   iam.IAMModelContext{Cluster: spec.Cluster},
+		AllInstanceGroups: spec.InstanceGroups,
+		InstanceGroups:    spec.InstanceGroups,
 	}
 
 	for _, u := range spec.AdditionalObjects {

@@ -25,6 +25,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"k8s.io/kops/upup/pkg/fi/loader"
 	"k8s.io/kops/upup/pkg/fi/utils"
 )
@@ -53,7 +54,7 @@ func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o *kops.Cluster) erro
 	// TLDR; set this too low, and have a few EBS Volumes, and you will spam AWS api
 
 	{
-		klog.V(4).Infof("Kubernetes version %q supports AttachDetachReconcileSyncPeriod; will configure", b.KubernetesVersion)
+		klog.V(4).Infof("Kubernetes version %q supports AttachDetachReconcileSyncPeriod; will configure", b.ControlPlaneKubernetesVersion().String())
 		// If not set ... or set to 0s ... which is stupid
 		if kcm.AttachDetachReconcileSyncPeriod == nil ||
 			kcm.AttachDetachReconcileSyncPeriod.Duration.String() == "0s" {
@@ -118,6 +119,14 @@ func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o *kops.Cluster) erro
 		} else {
 			kcm.CIDRAllocatorType = fi.PtrTo("CloudAllocator")
 		}
+	} else if networking.Kindnet != nil {
+		// We don't expect KCM to configure routes; it should be done by the CCM (or by the infrastructure)
+		kcm.ConfigureCloudRoutes = fi.PtrTo(false)
+
+		// If the cloud is allocating the node CIDRs, that should be done by CCM
+		if o.GetCloudProvider() == kops.CloudProviderGCE && gce.UsesIPAliases(o) {
+			kcm.AllocateNodeCIDRs = fi.PtrTo(false)
+		}
 	} else if networking.External != nil {
 		kcm.ConfigureCloudRoutes = fi.PtrTo(false)
 	} else if UsesCNI(networking) {
@@ -149,11 +158,11 @@ func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o *kops.Cluster) erro
 			kcm.FeatureGates = make(map[string]string)
 		}
 
-		if _, found := kcm.FeatureGates["InTreePluginAWSUnregister"]; !found && b.IsKubernetesLT("1.31") {
+		if _, found := kcm.FeatureGates["InTreePluginAWSUnregister"]; !found && b.ControlPlaneKubernetesVersion().IsLT("1.31") {
 			kcm.FeatureGates["InTreePluginAWSUnregister"] = "true"
 		}
 
-		if _, found := kcm.FeatureGates["CSIMigrationAWS"]; !found && b.IsKubernetesLT("1.27") {
+		if _, found := kcm.FeatureGates["CSIMigrationAWS"]; !found && b.ControlPlaneKubernetesVersion().IsLT("1.27") {
 			kcm.FeatureGates["CSIMigrationAWS"] = "true"
 		}
 	}

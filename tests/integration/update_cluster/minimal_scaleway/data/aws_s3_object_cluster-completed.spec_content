@@ -18,8 +18,8 @@ spec:
   containerd:
     logLevel: info
     runc:
-      version: 1.1.5
-    version: 1.6.20
+      version: 1.2.4
+    version: 1.7.25
   etcdClusters:
   - backups:
       backupStore: memfs://tests/scw-minimal.k8s.local/backups/etcd/main
@@ -31,7 +31,7 @@ spec:
       backupRetentionDays: 90
     memoryRequest: 100Mi
     name: main
-    version: 3.5.13
+    version: 3.5.17
   - backups:
       backupStore: memfs://tests/scw-minimal.k8s.local/backups/etcd/events
     cpuRequest: 100m
@@ -42,7 +42,7 @@ spec:
       backupRetentionDays: 90
     memoryRequest: 100Mi
     name: events
-    version: 3.5.13
+    version: 3.5.17
   externalDns:
     provider: dns-controller
   iam:
@@ -72,7 +72,7 @@ spec:
     - https://127.0.0.1:4001
     etcdServersOverrides:
     - /events#https://127.0.0.1:4002
-    image: registry.k8s.io/kube-apiserver:v1.25.5
+    image: registry.k8s.io/kube-apiserver:v1.32.0
     kubeletPreferredAddressTypes:
     - InternalIP
     - Hostname
@@ -98,7 +98,7 @@ spec:
     clusterCIDR: 100.96.0.0/11
     clusterName: scw-minimal.k8s.local
     configureCloudRoutes: false
-    image: registry.k8s.io/kube-controller-manager:v1.25.5
+    image: registry.k8s.io/kube-controller-manager:v1.32.0
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -121,10 +121,10 @@ spec:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
     enabled: false
-    image: registry.k8s.io/kube-proxy:v1.25.5
+    image: registry.k8s.io/kube-proxy:v1.32.0
     logLevel: 2
   kubeScheduler:
-    image: registry.k8s.io/kube-scheduler:v1.25.5
+    image: registry.k8s.io/kube-scheduler:v1.32.0
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -148,7 +148,7 @@ spec:
   kubernetesApiAccess:
   - 0.0.0.0/0
   - ::/0
-  kubernetesVersion: 1.25.5
+  kubernetesVersion: 1.32.0
   masterKubelet:
     anonymousAuth: false
     cgroupDriver: systemd
@@ -184,6 +184,7 @@ spec:
       enableBPFMasquerade: false
       enableEndpointHealthChecking: true
       enableL7Proxy: true
+      enableLocalRedirectPolicy: false
       enableNodePort: true
       enableRemoteNodeIdentity: true
       enableUnreachableRoutes: false
@@ -199,7 +200,7 @@ spec:
       sidecarIstioProxyImage: cilium/istio_proxy
       toFqdnsDnsRejectResponseCode: refused
       tunnel: vxlan
-      version: v1.16.2
+      version: v1.16.5
   nonMasqueradeCIDR: 100.64.0.0/10
   podCIDR: 100.96.0.0/11
   secretStore: memfs://tests/scw-minimal.k8s.local/secrets

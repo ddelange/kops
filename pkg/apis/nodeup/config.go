@@ -69,6 +69,8 @@ type Config struct {
 	KubeProxy *kops.KubeProxyConfig
 	// Networking configures networking.
 	Networking kops.NetworkingSpec
+	// InstallCNIAssets specifies that the CNI network plugins need to be installed.
+	InstallCNIAssets bool `json:",omitempty"`
 	// UseCiliumEtcd is true when a Cilium etcd cluster is present.
 	UseCiliumEtcd bool `json:",omitempty"`
 	// UsesKubenet specifies that the CNI is derived from Kubenet.
@@ -297,6 +299,10 @@ func NewConfig(cluster *kops.Cluster, instanceGroup *kops.InstanceGroup) (*Confi
 		config.UpdatePolicy = kops.UpdatePolicyAutomatic
 	}
 
+	if cluster.InstallCNIAssets() {
+		config.InstallCNIAssets = true
+	}
+
 	if cluster.Spec.Networking.AmazonVPC != nil {
 		config.Networking.AmazonVPC = &kops.AmazonVPCNetworkingSpec{}
 		config.DefaultMachineType = aws.String(strings.Split(instanceGroup.Spec.MachineType, ",")[0])
@@ -326,6 +332,10 @@ func NewConfig(cluster *kops.Cluster, instanceGroup *kops.InstanceGroup) (*Confi
 
 	if cluster.Spec.Networking.KubeRouter != nil {
 		config.Networking.KubeRouter = &kops.KuberouterNetworkingSpec{}
+	}
+
+	if cluster.Spec.Networking.Kindnet != nil {
+		config.Networking.Kindnet = &kops.KindnetNetworkingSpec{}
 	}
 
 	if instanceGroup.Spec.Kubelet != nil {
