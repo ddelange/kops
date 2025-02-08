@@ -1262,6 +1262,8 @@ func setupNetworking(opt *NewClusterOptions, cluster *api.Cluster) error {
 		cluster.Spec.Networking.Cilium.IPAM = "eni"
 	case "gcp", "gce":
 		cluster.Spec.Networking.GCP = &api.GCPNetworkingSpec{}
+	case "kindnet":
+		cluster.Spec.Networking.Kindnet = &api.KindnetNetworkingSpec{}
 	default:
 		return fmt.Errorf("unknown networking mode %q", opt.Networking)
 	}
@@ -1651,7 +1653,7 @@ func defaultImage(cluster *api.Cluster, channel *api.Channel, architecture archi
 		case api.CloudProviderScaleway:
 			return defaultScalewayImageFocal, nil
 		}
-	} else {
+	} else if kubernetesVersion.LT(semver.MustParse("1.32.0")) {
 		switch cluster.GetCloudProvider() {
 		case api.CloudProviderDO:
 			return defaultDOImageJammy, nil
@@ -1659,6 +1661,17 @@ func defaultImage(cluster *api.Cluster, channel *api.Channel, architecture archi
 			return defaultHetznerImageJammy, nil
 		case api.CloudProviderScaleway:
 			return defaultScalewayImageJammy, nil
+		case api.CloudProviderMetal:
+			return "dummy-metal-image", nil
+		}
+	} else {
+		switch cluster.GetCloudProvider() {
+		case api.CloudProviderDO:
+			return defaultDOImageNoble, nil
+		case api.CloudProviderHetzner:
+			return defaultHetznerImageNoble, nil
+		case api.CloudProviderScaleway:
+			return defaultScalewayImageNoble, nil
 		case api.CloudProviderMetal:
 			return "dummy-metal-image", nil
 		}

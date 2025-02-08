@@ -28,11 +28,10 @@ import (
 	"strings"
 
 	"k8s.io/kops/pkg/apis/kops"
-	apiModel "k8s.io/kops/pkg/apis/kops/model"
+	kopsmodel "k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/pkg/apis/nodeup"
 	"k8s.io/kops/pkg/assets"
 	"k8s.io/kops/pkg/model"
-	"k8s.io/kops/pkg/model/components"
 	"k8s.io/kops/pkg/nodemodel/wellknownassets"
 	"k8s.io/kops/pkg/wellknownports"
 	"k8s.io/kops/pkg/wellknownservices"
@@ -42,12 +41,6 @@ import (
 )
 
 type nodeUpConfigBuilder struct {
-	// Assets is a list of sources for files (primarily when not using everything containerized)
-	// Formats:
-	//  raw url: http://... or https://...
-	//  url with hash: <hex>@http://... or <hex>@https://...
-	assets map[architectures.Architecture][]*assets.MirroredAsset
-
 	assetBuilder               *assets.AssetBuilder
 	channels                   []string
 	configBase                 vfs.Path
@@ -59,7 +52,7 @@ type nodeUpConfigBuilder struct {
 	encryptionConfigSecretHash string
 }
 
-func NewNodeUpConfigBuilder(cluster *kops.Cluster, assetBuilder *assets.AssetBuilder, nodeAssets map[architectures.Architecture][]*assets.MirroredAsset, encryptionConfigSecretHash string) (model.NodeUpConfigBuilder, error) {
+func NewNodeUpConfigBuilder(cluster *kops.Cluster, assetBuilder *assets.AssetBuilder, encryptionConfigSecretHash string) (model.NodeUpConfigBuilder, error) {
 	configBase, err := vfs.Context.BuildVfsPath(cluster.Spec.ConfigStore.Base)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing configStore.base %q: %v", cluster.Spec.ConfigStore.Base, err)
@@ -99,7 +92,7 @@ func NewNodeUpConfigBuilder(cluster *kops.Cluster, assetBuilder *assets.AssetBui
 		isAPIServer := role == kops.InstanceGroupRoleAPIServer
 
 		images[role] = make(map[architectures.Architecture][]*nodeup.Image)
-		if components.IsBaseURL(cluster.Spec.KubernetesVersion) {
+		if kopsmodel.IsBaseURL(cluster.Spec.KubernetesVersion) {
 			// When using a custom version, we want to preload the images over http
 			components := []string{"kube-proxy"}
 			if isMaster {
@@ -194,7 +187,6 @@ func NewNodeUpConfigBuilder(cluster *kops.Cluster, assetBuilder *assets.AssetBui
 
 	configBuilder := nodeUpConfigBuilder{
 		assetBuilder:               assetBuilder,
-		assets:                     nodeAssets,
 		channels:                   channels,
 		configBase:                 configBase,
 		cluster:                    cluster,
@@ -227,10 +219,30 @@ func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, wellKnownAddre
 
 	config, bootConfig := nodeup.NewConfig(cluster, ig)
 
+	igModel, err := kopsmodel.ForInstanceGroup(cluster, ig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("building instance group model: %w", err)
+	}
+
+	if !hasAPIServer && n.assetBuilder.KubeletSupportedVersion != "" {
+		// Set kubernetes version to avoid spurious rolling-update
+		config.KubernetesVersion = n.assetBuilder.KubeletSupportedVersion
+
+		// TODO: Rename KubernetesVersion to ControlPlaneVersion
+
+		if err := igModel.ForceKubernetesVersion(n.assetBuilder.KubeletSupportedVersion); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	kubernetesAssets, err := BuildKubernetesFileAssets(igModel, n.assetBuilder)
+	if err != nil {
+		return nil, nil, err
+	}
 	config.Assets = make(map[architectures.Architecture][]string)
 	for _, arch := range architectures.GetSupported() {
 		config.Assets[arch] = []string{}
-		for _, a := range n.assets[arch] {
+		for _, a := range kubernetesAssets.KubernetesFileAssets[arch] {
 			config.Assets[arch] = append(config.Assets[arch], a.CompactString())
 		}
 	}
@@ -374,7 +386,7 @@ func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, wellKnownAddre
 		}
 	}
 
-	useConfigServer := apiModel.UseKopsControllerForNodeConfig(cluster) && !ig.HasAPIServer()
+	useConfigServer := kopsmodel.UseKopsControllerForNodeConfig(cluster) && !ig.HasAPIServer()
 	if useConfigServer {
 		hosts := []string{"kops-controller.internal." + cluster.ObjectMeta.Name}
 		if len(bootConfig.APIServerIPs) > 0 {

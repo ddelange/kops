@@ -69,6 +69,7 @@ data:
   enable-ipv6: "false"
   enable-ipv6-masquerade: "false"
   enable-l7-proxy: "true"
+  enable-local-redirect-policy: "false"
   enable-node-port: "false"
   enable-remote-node-identity: "true"
   enable-service-topology: "false"
@@ -78,7 +79,7 @@ data:
   hubble-disable-tls: "false"
   hubble-listen-address: :4244
   hubble-metrics: drop
-  hubble-metrics-server: :9091
+  hubble-metrics-server: :9965
   hubble-socket-path: /var/run/cilium/hubble.sock
   hubble-tls-cert-file: /var/lib/cilium/tls/hubble/server.crt
   hubble-tls-client-ca-files: /var/lib/cilium/tls/hubble/client-ca.crt
@@ -299,6 +300,14 @@ rules:
   - list
   - watch
   - delete
+- apiGroups:
+  - ""
+  resourceNames:
+  - cilium-config
+  resources:
+  - configmaps
+  verbs:
+  - patch
 - apiGroups:
   - ""
   resources:
@@ -828,7 +837,7 @@ spec:
           value: api.internal.privatecilium.example.com
         - name: KUBERNETES_SERVICE_PORT
           value: "443"
-        image: quay.io/cilium/cilium:v1.16.2
+        image: quay.io/cilium/cilium:v1.16.5
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -854,8 +863,8 @@ spec:
           hostPort: 4244
           name: peer-service
           protocol: TCP
-        - containerPort: 9091
-          hostPort: 9091
+        - containerPort: 9965
+          hostPort: 9965
           name: hubble-metrics
           protocol: TCP
         readinessProbe:
@@ -957,7 +966,7 @@ spec:
           value: api.internal.privatecilium.example.com
         - name: KUBERNETES_SERVICE_PORT
           value: "443"
-        image: quay.io/cilium/cilium:v1.16.2
+        image: quay.io/cilium/cilium:v1.16.5
         imagePullPolicy: IfNotPresent
         name: config
         terminationMessagePolicy: FallbackToLogsOnError
@@ -976,7 +985,7 @@ spec:
           value: /run/cilium/cgroupv2
         - name: BIN_PATH
           value: /opt/cni/bin
-        image: quay.io/cilium/cilium:v1.16.2
+        image: quay.io/cilium/cilium:v1.16.5
         imagePullPolicy: IfNotPresent
         name: mount-cgroup
         securityContext:
@@ -1003,7 +1012,7 @@ spec:
         env:
         - name: BIN_PATH
           value: /opt/cni/bin
-        image: quay.io/cilium/cilium:v1.16.2
+        image: quay.io/cilium/cilium:v1.16.5
         imagePullPolicy: IfNotPresent
         name: apply-sysctl-overwrites
         securityContext:
@@ -1027,7 +1036,7 @@ spec:
         - /bin/bash
         - -c
         - --
-        image: quay.io/cilium/cilium:v1.16.2
+        image: quay.io/cilium/cilium:v1.16.5
         imagePullPolicy: IfNotPresent
         name: mount-bpf-fs
         securityContext:
@@ -1062,7 +1071,7 @@ spec:
           value: api.internal.privatecilium.example.com
         - name: KUBERNETES_SERVICE_PORT
           value: "443"
-        image: quay.io/cilium/cilium:v1.16.2
+        image: quay.io/cilium/cilium:v1.16.5
         imagePullPolicy: IfNotPresent
         name: clean-cilium-state
         securityContext:
@@ -1087,7 +1096,7 @@ spec:
           name: cilium-run
       - command:
         - /install-plugin.sh
-        image: quay.io/cilium/cilium:v1.16.2
+        image: quay.io/cilium/cilium:v1.16.5
         imagePullPolicy: IfNotPresent
         name: install-cni-binaries
         resources:
@@ -1264,7 +1273,7 @@ spec:
           value: api.internal.privatecilium.example.com
         - name: KUBERNETES_SERVICE_PORT
           value: "443"
-        image: quay.io/cilium/operator:v1.16.2
+        image: quay.io/cilium/operator:v1.16.5
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
@@ -1368,7 +1377,7 @@ spec:
         - serve
         command:
         - hubble-relay
-        image: quay.io/cilium/hubble-relay:v1.16.2
+        image: quay.io/cilium/hubble-relay:v1.16.5
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 12
@@ -1462,10 +1471,16 @@ metadata:
 spec:
   dnsNames:
   - '*.privatecilium-example-com.hubble-grpc.cilium.io'
+  isCA: false
   issuerRef:
     kind: Issuer
     name: networking.cilium.io
   secretName: hubble-server-certs
+  usages:
+  - signing
+  - key encipherment
+  - server auth
+  - client auth
 
 ---
 
@@ -1484,11 +1499,14 @@ metadata:
 spec:
   dnsNames:
   - hubble-relay-client
+  isCA: false
   issuerRef:
     kind: Issuer
     name: networking.cilium.io
   secretName: hubble-relay-client-certs
   usages:
+  - signing
+  - key encipherment
   - client auth
 
 ---

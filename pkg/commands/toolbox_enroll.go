@@ -37,7 +37,6 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -110,14 +109,9 @@ func RunToolboxEnroll(ctx context.Context, f commandutils.Factory, out io.Writer
 
 	// Enroll the node over SSH.
 	if options.Host != "" {
-		// TODO: This is the pattern we use a lot, but should we try to access it directly?
-		contextName := fullCluster.ObjectMeta.Name
-		clientGetter := genericclioptions.NewConfigFlags(true)
-		clientGetter.Context = &contextName
-
-		restConfig, err := clientGetter.ToRESTConfig()
+		restConfig, err := f.RESTConfig(fullCluster)
 		if err != nil {
-			return fmt.Errorf("cannot load kubecfg settings for %q: %w", contextName, err)
+			return err
 		}
 
 		if err := enrollHost(ctx, fullInstanceGroup, options, bootstrapData, restConfig); err != nil {
@@ -752,14 +746,13 @@ func (b *ConfigBuilder) GetBootstrapData(ctx context.Context) (*BootstrapData, e
 	// 	}
 	// 	hashBytes := sha256.Sum256(secret.Data)
 	// 	encryptionConfigSecretHash = base64.URLEncoding.EncodeToString(hashBytes[:])
-	// }
 
-	fileAssets := &nodemodel.FileAssets{Cluster: cluster}
-	if err := fileAssets.AddFileAssets(assetBuilder); err != nil {
+	nodeUpAssets, err := nodemodel.BuildNodeUpAssets(ctx, assetBuilder)
+	if err != nil {
 		return nil, err
 	}
 
-	configBuilder, err := nodemodel.NewNodeUpConfigBuilder(cluster, assetBuilder, fileAssets.Assets, encryptionConfigSecretHash)
+	configBuilder, err := nodemodel.NewNodeUpConfigBuilder(cluster, assetBuilder, encryptionConfigSecretHash)
 	if err != nil {
 		return nil, err
 	}
@@ -791,7 +784,7 @@ func (b *ConfigBuilder) GetBootstrapData(ctx context.Context) (*BootstrapData, e
 	}
 
 	var nodeupScript resources.NodeUpScript
-	nodeupScript.NodeUpAssets = fileAssets.NodeUpAssets
+	nodeupScript.NodeUpAssets = nodeUpAssets.NodeUpAssets
 	nodeupScript.BootConfig = bootConfig
 
 	nodeupScript.WithEnvironmentVariables(cluster, ig)

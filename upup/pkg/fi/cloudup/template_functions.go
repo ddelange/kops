@@ -303,6 +303,15 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 			}
 			return "CrossSubnet"
 		}
+		dest["CalicoIPv6PoolVXLANMode"] = func() string {
+			if c.EncapsulationMode != "vxlan" {
+				return "Never"
+			}
+			if c.VXLANMode != "" {
+				return c.VXLANMode
+			}
+			return "Never"
+		}
 	}
 
 	if cluster.Spec.Networking.Cilium != nil {
@@ -708,7 +717,7 @@ func (tf *TemplateFunctions) KopsControllerConfig() (string, error) {
 		switch cluster.GetCloudProvider() {
 		case kops.CloudProviderAWS:
 			nodesRoles := sets.String{}
-			for _, ig := range tf.InstanceGroups {
+			for _, ig := range tf.AllInstanceGroups {
 				if ig.Spec.Role == kops.InstanceGroupRoleNode || ig.Spec.Role == kops.InstanceGroupRoleAPIServer {
 					profile, err := tf.LinkToIAMInstanceProfile(ig)
 					if err != nil {
@@ -815,6 +824,8 @@ func (tf *TemplateFunctions) ExternalDNSArgv() ([]string, error) {
 	switch cloudProvider {
 	case kops.CloudProviderAWS:
 		argv = append(argv, "--provider=aws")
+	case kops.CloudProviderOpenstack:
+		argv = append(argv, "--provider=designate")
 	case kops.CloudProviderGCE:
 		project := cluster.Spec.CloudProvider.GCE.Project
 		argv = append(argv, "--provider=google")
@@ -894,7 +905,7 @@ func (tf *TemplateFunctions) KopsControllerEnv() []corev1.EnvVar {
 	return envMap.ToEnvVars()
 }
 
-// OpenStackCCM returns OpenStack external cloud controller manager current image
+// OpenStackCCMTag returns OpenStack external cloud controller manager current image
 // with tag specified to k8s version
 func (tf *TemplateFunctions) OpenStackCCMTag() string {
 	var tag string
@@ -902,11 +913,7 @@ func (tf *TemplateFunctions) OpenStackCCMTag() string {
 	if err != nil {
 		tag = "latest"
 	} else {
-		if parsed.Minor == 25 {
-			tag = "v1.25.5"
-		} else if parsed.Minor == 26 {
-			tag = "v1.26.2"
-		} else if parsed.Minor == 27 {
+		if parsed.Minor == 27 {
 			tag = "v1.27.1"
 		} else {
 			// otherwise we use always .0 ccm image, if needed that can be overrided using clusterspec
@@ -916,7 +923,7 @@ func (tf *TemplateFunctions) OpenStackCCMTag() string {
 	return tag
 }
 
-// OpenStackCSI returns OpenStack csi current image
+// OpenStackCSITag returns OpenStack csi current image
 // with tag specified to k8s version
 func (tf *TemplateFunctions) OpenStackCSITag() string {
 	var tag string
@@ -924,11 +931,7 @@ func (tf *TemplateFunctions) OpenStackCSITag() string {
 	if err != nil {
 		tag = "latest"
 	} else {
-		if parsed.Minor == 25 {
-			tag = "v1.25.5"
-		} else if parsed.Minor == 26 {
-			tag = "v1.26.2"
-		} else if parsed.Minor == 27 {
+		if parsed.Minor == 27 {
 			tag = "v1.27.1"
 		} else {
 			// otherwise we use always .0 csi image, if needed that can be overrided using cloud config spec

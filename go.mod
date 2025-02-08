@@ -1,7 +1,7 @@
 module k8s.io/kops
 
 // This should be kept in sync with cloudbuild.yaml and the other go.mod files
-go 1.22.7
+go 1.23.5
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.2
@@ -47,7 +47,7 @@ require (
 	github.com/google/go-tpm v0.9.1
 	github.com/google/go-tpm-tools v0.4.4
 	github.com/google/uuid v1.6.0
-	github.com/gophercloud/gophercloud v1.14.1
+	github.com/gophercloud/gophercloud/v2 v2.2.0
 	github.com/hetznercloud/hcloud-go v1.59.1
 	github.com/jacksontj/memberlistmesh v0.0.0-20190905163944-93462b9d2bb7
 	github.com/pelletier/go-toml v1.9.5
@@ -58,7 +58,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
-	github.com/spotinst/spotinst-sdk-go v1.171.0
+	github.com/spotinst/spotinst-sdk-go v1.372.0
 	github.com/stretchr/testify v1.9.0
 	github.com/weaveworks/mesh v0.0.0-20191105120815-58dbcc3e8e63
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.55.0

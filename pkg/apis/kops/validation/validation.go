@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -757,20 +758,18 @@ func validateKubeAPIServer(v *kops.KubeAPIServerConfig, c *kops.Cluster, fldPath
 				"admissionControl is mutually exclusive with disableAdmissionPlugins˚"))
 		}
 
-		if c.IsKubernetesGTE("1.26") {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("admissionControl"), "admissionControl has been replaced with enableAdmissionPlugins"))
-		}
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("admissionControl"), "admissionControl has been replaced with enableAdmissionPlugins"))
 	}
 
 	for _, plugin := range v.EnableAdmissionPlugins {
-		if plugin == "PodSecurityPolicy" && c.IsKubernetesGTE("1.25") {
+		if plugin == "PodSecurityPolicy" {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("enableAdmissionPlugins"),
 				"PodSecurityPolicy has been removed from Kubernetes 1.25"))
 		}
 	}
 
 	for _, plugin := range v.AdmissionControl {
-		if plugin == "PodSecurityPolicy" && c.IsKubernetesGTE("1.25") {
+		if plugin == "PodSecurityPolicy" {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("admissionControl"),
 				"PodSecurityPolicy has been removed from Kubernetes 1.25"))
 		}
@@ -853,9 +852,7 @@ func validateKubeControllerManager(v *kops.KubeControllerManagerConfig, c *kops.
 	// We aren't aiming to do comprehensive validation, but we can add some best-effort validation where it helps guide users
 	// Users reported encountered this in #15909
 	if v.ExperimentalClusterSigningDuration != nil {
-		if c.IsKubernetesGTE("1.25") {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("experimentalClusterSigningDuration"), "experimentalClusterSigningDuration has been replaced with clusterSigningDuration as of kubernetes 1.25"))
-		}
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("experimentalClusterSigningDuration"), "experimentalClusterSigningDuration has been replaced with clusterSigningDuration as of kubernetes 1.25"))
 	}
 
 	return allErrs
@@ -1092,78 +1089,43 @@ func validateNetworking(cluster *kops.Cluster, v *kops.NetworkingSpec, fldPath *
 		allErrs = append(allErrs, validateTopology(cluster, v.Topology, fldPath.Child("topology"))...)
 	}
 
-	optionTaken := false
-
 	if v.Classic != nil {
 		allErrs = append(allErrs, field.Invalid(fldPath, "classic", "classic networking is not supported"))
 	}
 
 	if v.Kubenet != nil {
-		optionTaken = true
-
 		if cluster.Spec.IsIPv6Only() {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("kubenet"), "Kubenet does not support IPv6"))
 		}
 	}
 
 	if v.External != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("external"), "only one networking option permitted"))
-		}
-
-		if cluster.IsKubernetesGTE("1.26") {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("external"), "external is not supported for Kubernetes >= 1.26"))
-		}
-		optionTaken = true
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("external"), "external is not supported for Kubernetes >= 1.26"))
 	}
 
 	if v.Kopeio != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("kopeio"), "only one networking option permitted"))
-		}
-		optionTaken = true
-
 		if cluster.Spec.IsIPv6Only() {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("kopeio"), "Kopeio does not support IPv6"))
 		}
 	}
 
-	if v.CNI != nil && optionTaken {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("cni"), "only one networking option permitted"))
-	}
+	// Nothing to validate for CNI
+	// if v.CNI != nil {
+	// }
 
 	if v.Weave != nil {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("weave"), "Weave is no longer supported"))
 	}
 
 	if v.Flannel != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("flannel"), "only one networking option permitted"))
-		}
-		optionTaken = true
-
-		if cluster.IsKubernetesGTE("1.28") {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("flannel"), "Flannel is not supported for Kubernetes >= 1.28"))
-		} else {
-			allErrs = append(allErrs, validateNetworkingFlannel(cluster, v.Flannel, fldPath.Child("flannel"))...)
-		}
+		allErrs = append(allErrs, validateNetworkingFlannel(cluster, v.Flannel, fldPath.Child("flannel"))...)
 	}
 
 	if v.Calico != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("calico"), "only one networking option permitted"))
-		}
-		optionTaken = true
-
 		allErrs = append(allErrs, validateNetworkingCalico(&cluster.Spec, v.Calico, fldPath.Child("calico"))...)
 	}
 
 	if v.Canal != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("canal"), "only one networking option permitted"))
-		}
-		optionTaken = true
-
 		if cluster.IsKubernetesGTE("1.28") {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("canal"), "Canal is not supported for Kubernetes >= 1.28"))
 		} else {
@@ -1172,13 +1134,9 @@ func validateNetworking(cluster *kops.Cluster, v *kops.NetworkingSpec, fldPath *
 	}
 
 	if v.KubeRouter != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("kubeRouter"), "only one networking option permitted"))
-		}
 		if c.KubeProxy != nil && (c.KubeProxy.Enabled == nil || *c.KubeProxy.Enabled) {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Root().Child("spec", "kubeProxy", "enabled"), "kube-router requires kubeProxy to be disabled"))
 		}
-		optionTaken = true
 
 		if cluster.Spec.IsIPv6Only() {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("kubeRouter"), "kube-router does not support IPv6"))
@@ -1190,11 +1148,6 @@ func validateNetworking(cluster *kops.Cluster, v *kops.NetworkingSpec, fldPath *
 	}
 
 	if v.AmazonVPC != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("amazonVPC"), "only one networking option permitted"))
-		}
-		optionTaken = true
-
 		if cluster.GetCloudProvider() != kops.CloudProviderAWS {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("amazonVPC"), "amazon-vpc-routed-eni networking is supported only in AWS"))
 		}
@@ -1202,28 +1155,30 @@ func validateNetworking(cluster *kops.Cluster, v *kops.NetworkingSpec, fldPath *
 		if cluster.Spec.IsIPv6Only() {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("amazonVPC"), "amazon-vpc-routed-eni networking does not support IPv6"))
 		}
-
 	}
 
 	if v.Cilium != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("cilium"), "only one networking option permitted"))
-		}
-		optionTaken = true
-
 		allErrs = append(allErrs, validateNetworkingCilium(cluster, v.Cilium, fldPath.Child("cilium"))...)
 	}
 
 	if v.LyftVPC != nil {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("lyftvp"), "support for LyftVPC has been removed"))
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("lyftvpc"), "support for LyftVPC has been removed"))
 	}
 
 	if v.GCP != nil {
-		if optionTaken {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("gcp"), "only one networking option permitted"))
-		}
-
 		allErrs = append(allErrs, validateNetworkingGCP(cluster, v.GCP, fldPath.Child("gcp"))...)
+	}
+
+	if v.Kindnet != nil {
+		allErrs = append(allErrs, validateNetworkingKindnet(cluster, v.Kindnet, fldPath.Child("kindnet"))...)
+	}
+
+	options := v.ConfiguredOptions()
+	if options.Len() > 1 {
+		optionsList := sets.List(options)
+		for _, option := range optionsList {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Child(option), fmt.Sprintf("only one networking option permitted, found %s", strings.Join(optionsList, ", "))))
+		}
 	}
 
 	return allErrs
@@ -1400,6 +1355,23 @@ func validateNetworkingGCP(cluster *kops.Cluster, v *kops.GCPNetworkingSpec, fld
 		allErrs = append(allErrs, field.Forbidden(fldPath, "GCP networking does not support IPv6"))
 	}
 
+	return allErrs
+}
+
+func validateNetworkingKindnet(cluster *kops.Cluster, v *kops.KindnetNetworkingSpec, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if v.Masquerade != nil && v.Masquerade.Enabled != nil && *v.Masquerade.Enabled {
+		for _, cidr := range v.Masquerade.NonMasqueradeCIDRs {
+			if cidr == "" {
+				continue
+			}
+			_, err := netip.ParsePrefix(cidr)
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(fldPath, cidr, err.Error()))
+			}
+		}
+	}
 	return allErrs
 }
 

@@ -61,8 +61,11 @@ import (
 
 type CreateClusterOptions struct {
 	cloudup.NewClusterOptions
-	Yes                        bool
-	Target                     string
+	Yes bool
+
+	// Target is the type of target we will operate against (direct, dry-run, terraform)
+	Target cloudup.Target
+
 	ControlPlaneVolumeSize     int32
 	NodeVolumeSize             int32
 	ContainerRuntime           string
@@ -203,7 +206,7 @@ func NewCmdCreateCluster(f *util.Factory, out io.Writer) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&options.Yes, "yes", "y", options.Yes, "Specify --yes to immediately create the cluster")
-	cmd.Flags().StringVar(&options.Target, "target", options.Target, fmt.Sprintf("Valid targets: %s, %s. Set this flag to %s if you want kOps to generate terraform", cloudup.TargetDirect, cloudup.TargetTerraform, cloudup.TargetTerraform))
+	cmd.Flags().Var(&options.Target, "target", fmt.Sprintf("Valid targets: %q, %q. Set this flag to %q if you want kOps to generate terraform", cloudup.TargetDirect, cloudup.TargetTerraform, cloudup.TargetTerraform))
 	cmd.RegisterFlagCompletionFunc("target", completeCreateClusterTarget(options))
 
 	// Configuration / state location
@@ -314,7 +317,7 @@ func NewCmdCreateCluster(f *util.Factory, out io.Writer) *cobra.Command {
 	cmd.Flags().StringVar(&options.EtcdStorageType, "etcd-storage-type", options.EtcdStorageType, "The default storage type for etcd members")
 	cmd.RegisterFlagCompletionFunc("etcd-storage-type", completeStorageType)
 
-	cmd.Flags().StringVar(&options.Networking, "networking", options.Networking, "Networking mode.  kubenet, external, flannel-vxlan (or flannel), flannel-udp, calico, canal, kube-router, amazonvpc, cilium, cilium-etcd, cni.")
+	cmd.Flags().StringVar(&options.Networking, "networking", options.Networking, "Networking mode.  kubenet, external, flannel-vxlan (or flannel), flannel-udp, calico, canal, kube-router, amazonvpc, cilium, cilium-etcd, kindnet, cni.")
 	cmd.RegisterFlagCompletionFunc("networking", completeNetworking(options))
 
 	cmd.Flags().StringVar(&options.DNSZone, "dns-zone", options.DNSZone, "DNS hosted zone (defaults to longest matching zone)")
@@ -651,7 +654,7 @@ func RunCreateCluster(ctx context.Context, f *util.Factory, out io.Writer, c *Cr
 		return err
 	}
 
-	assetBuilder := assets.NewAssetBuilder(clientset.VFSContext(), cluster.Spec.Assets, cluster.Spec.KubernetesVersion, false)
+	assetBuilder := assets.NewAssetBuilder(clientset.VFSContext(), cluster.Spec.Assets, false)
 	fullCluster, err := cloudup.PopulateClusterSpec(ctx, clientset, cluster, instanceGroups, cloud, assetBuilder)
 	if err != nil {
 		return err
@@ -802,9 +805,10 @@ func RunCreateCluster(ctx context.Context, f *util.Factory, out io.Writer, c *Cr
 		updateClusterOptions.Yes = c.Yes
 		updateClusterOptions.Target = c.Target
 		updateClusterOptions.OutDir = c.OutDir
-		updateClusterOptions.admin = kubeconfig.DefaultKubecfgAdminLifetime
 		updateClusterOptions.ClusterName = cluster.Name
-		updateClusterOptions.CreateKubecfg = true
+
+		updateClusterOptions.CreateKubecfgOptions.Admin = kubeconfig.DefaultKubecfgAdminLifetime
+		updateClusterOptions.CreateKubecfgOptions.CreateKubecfg = true
 
 		// SSHPublicKey has already been mapped
 		updateClusterOptions.SSHPublicKey = ""
@@ -982,6 +986,7 @@ func completeNetworking(options *CreateClusterOptions) func(cmd *cobra.Command, 
 			"cilium",
 			"cilium-eni",
 			"cilium-etcd",
+			"kindnet",
 		}
 
 		if !options.IPv6 {
@@ -1008,7 +1013,7 @@ func completeNetworking(options *CreateClusterOptions) func(cmd *cobra.Command, 
 
 func completeCreateClusterTarget(options *CreateClusterOptions) func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		completions := []string{
+		completions := []cloudup.Target{
 			cloudup.TargetDirect,
 			cloudup.TargetDryRun,
 		}
@@ -1017,7 +1022,7 @@ func completeCreateClusterTarget(options *CreateClusterOptions) func(cmd *cobra.
 				completions = append(completions, cloudup.TargetTerraform)
 			}
 		}
-		return completions, cobra.ShellCompDirectiveNoFileComp
+		return toStringSlice(completions), cobra.ShellCompDirectiveNoFileComp
 	}
 }
 

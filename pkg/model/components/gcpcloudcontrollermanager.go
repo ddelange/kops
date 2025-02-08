@@ -54,9 +54,8 @@ func (b *GCPCloudControllerManagerOptionsBuilder) BuildOptions(cluster *kops.Clu
 		ccmConfig.ClusterCIDR = clusterSpec.Networking.PodCIDR
 	}
 
-	if clusterSpec.Networking.GCP != nil {
-		// "GCP" networking mode is called "ip-alias" or "vpc-native" on GKE.
-		// We don't need to configure routes if we are using "real" IPs.
+	if gce.UsesIPAliases(cluster) {
+		// We don't need to configure routes if we are using ipalias; these are "real" IPs
 		ccmConfig.ConfigureCloudRoutes = fi.PtrTo(false)
 	}
 
@@ -73,14 +72,10 @@ func (b *GCPCloudControllerManagerOptionsBuilder) BuildOptions(cluster *kops.Clu
 
 	if ccmConfig.Image == "" {
 		// TODO: Implement CCM image publishing
-		switch b.KubernetesVersion.Minor {
+		switch b.ControlPlaneKubernetesVersion().Minor() {
 		default:
 			ccmConfig.Image = "gcr.io/k8s-staging-cloud-provider-gcp/cloud-controller-manager:master"
 		}
-	}
-
-	if b.IsKubernetesLT("1.25") {
-		ccmConfig.EnableLeaderMigration = fi.PtrTo(true)
 	}
 
 	return nil

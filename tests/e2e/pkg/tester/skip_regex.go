@@ -50,14 +50,6 @@ func (t *Tester) setSkipRegexFlag() error {
 
 	skipRegex := skipRegexBase
 
-	if k8sVersion.Minor == 26 && cluster.Spec.LegacyCloudProvider == "aws" {
-		// This test was introduced in k8s 1.26
-		// and skipped automatically for AWS clusters as of k8s 1.27
-		// because Classic Load Balancers dont support UDP
-		// https://github.com/kubernetes/kubernetes/pull/113650
-		// https://github.com/kubernetes/kubernetes/pull/115977
-		skipRegex += "|LoadBalancers.should.be.able.to.preserve.UDP.traffic"
-	}
 	if !isPre28 {
 		// K8s 1.28 promoted ProxyTerminatingEndpoints to GA, but it has limited CNI support
 		// https://github.com/kubernetes/kubernetes/pull/117718
@@ -91,6 +83,9 @@ func (t *Tester) setSkipRegexFlag() error {
 			// This seems to be specific to the kube-proxy replacement
 			// < 33 so we look at this again
 			skipRegex += "|Services.should.support.externalTrafficPolicy.Local.for.type.NodePort"
+			// https://github.com/kubernetes/kubernetes/issues/129221
+			// < 33 so we look at this again
+			skipRegex += "|Services.should.implement.NodePort.and.HealthCheckNodePort.correctly.when.ExternalTrafficPolicy.changes"
 		}
 
 		if isPre28 {
@@ -114,6 +109,11 @@ func (t *Tester) setSkipRegexFlag() error {
 			// It appears that the cilium kube-proxy replacement does not implement this.
 			// Ref: https://github.com/kubernetes/kubernetes/issues/126903
 			skipRegex += "|KubeProxy.should.update.metric.for.tracking.accepted.packets.destined.for.localhost.nodeports"
+		}
+	} else if networking.Flannel != nil {
+		if k8sVersion.Minor < 33 {
+			// < 33 so we look at this again
+			skipRegex += "|Services should implement NodePort and HealthCheckNodePort correctly when ExternalTrafficPolicy changes"
 		}
 	} else if networking.KubeRouter != nil {
 		skipRegex += "|should set TCP CLOSE_WAIT timeout|should check kube-proxy urls"
@@ -159,20 +159,6 @@ func (t *Tester) setSkipRegexFlag() error {
 		// Should be skipped on all versions we enable CSI drivers on
 		// ref: https://github.com/kubernetes/kubernetes/pull/109649#issuecomment-1108574843
 		skipRegex += "|should.verify.that.all.nodes.have.volume.limits"
-	}
-
-	if cluster.Spec.LegacyCloudProvider == "aws" {
-		if k8sVersion.Minor <= 26 {
-			// Prow jobs are being migrated to community-owned EKS clusters.
-			// The e2e.test binaries from older k/k builds dont have new enough aws-sdk-go versions to authenticate from EKS pods.
-			// This disables tests that depend on e2e.test's aws-sdk-go.
-			//
-			// > Couldn't create a new PD in zone "ap-northeast-1c", sleeping 5 seconds: NoCredentialProviders: no valid providers in chain. Deprecated.
-			//
-			// We can remove this once we remove the old upgrade jobs.
-			// Example: https://prow.k8s.io/view/gs/kubernetes-jenkins/logs/e2e-kops-aws-upgrade-k125-ko128-to-k126-kolatest/1808210907088556032
-			skipRegex += "|\\[Driver:.aws\\].\\[Testpattern:.Pre-provisioned.PV|\\[Driver:.aws\\].\\[Testpattern:.Inline-volume"
-		}
 	}
 
 	// This test fails on RHEL-based distros because they return fully qualified hostnames yet the k8s node names are not fully qualified.

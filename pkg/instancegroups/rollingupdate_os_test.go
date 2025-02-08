@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/servergroups"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servergroups"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/ports"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	v1meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +55,7 @@ func getTestSetupOS(t *testing.T, ctx context.Context) (*RollingUpdateCluster, *
 		t.Fatalf("Failed to perform assignments: %v", err)
 	}
 
-	assetBuilder := assets.NewAssetBuilder(vfs.Context, inCluster.Spec.Assets, inCluster.Spec.KubernetesVersion, false)
+	assetBuilder := assets.NewAssetBuilder(vfs.Context, inCluster.Spec.Assets, false)
 	basePath, _ := vfs.Context.BuildVfsPath(inCluster.Spec.ConfigStore.Base)
 	clientset := vfsclientset.NewVFSClientset(vfs.Context, basePath)
 	cluster, err := cloudup.PopulateClusterSpec(ctx, clientset, inCluster, nil, mockcloud, assetBuilder)
@@ -83,7 +83,6 @@ func getTestSetupOS(t *testing.T, ctx context.Context) (*RollingUpdateCluster, *
 		ValidateTickDuration:    1 * time.Millisecond,
 		ValidateSuccessDuration: 5 * time.Millisecond,
 		ValidateCount:           2,
-		Ctx:                     ctx,
 		Cluster:                 cluster,
 		Clientset:               clientset,
 	}
@@ -106,7 +105,7 @@ func TestRollingUpdateDisabledSurgeOS(t *testing.T) {
 	c, cloud := getTestSetupOS(t, ctx)
 
 	groups, igList := getGroupsAllNeedUpdateOS(t, c)
-	err := c.RollingUpdate(groups, igList)
+	err := c.RollingUpdate(ctx, groups, igList)
 	assert.NoError(t, err, "rolling update")
 
 	assertGroupInstanceCountOS(t, cloud, "node-1", 3)
@@ -117,6 +116,8 @@ func TestRollingUpdateDisabledSurgeOS(t *testing.T) {
 
 func makeGroupOS(t *testing.T, groups map[string]*cloudinstances.CloudInstanceGroup, igList *kopsapi.InstanceGroupList,
 	c *RollingUpdateCluster, subnet string, role kopsapi.InstanceGroupRole, count int, needUpdate int) {
+	ctx := context.TODO()
+
 	cloud := c.Cloud.(*openstack.MockCloud)
 	igif := c.Clientset.InstanceGroupsFor(c.Cluster)
 	fakeClient := c.K8sClient.(*fake.Clientset)
@@ -136,7 +137,7 @@ func makeGroupOS(t *testing.T, groups map[string]*cloudinstances.CloudInstanceGr
 
 	igList.Items = append(igList.Items, newIg)
 
-	ig, err := igif.Create(c.Ctx, &newIg, v1meta.CreateOptions{})
+	ig, err := igif.Create(ctx, &newIg, v1meta.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create ig %v: %v", subnet, err)
 	}
@@ -161,7 +162,7 @@ func makeGroupOS(t *testing.T, groups map[string]*cloudinstances.CloudInstanceGr
 					Port: port.ID,
 				},
 			},
-		}, "")
+		}, nil, "")
 		if err != nil {
 			t.Fatalf("Failed to make group: %v", err)
 		}

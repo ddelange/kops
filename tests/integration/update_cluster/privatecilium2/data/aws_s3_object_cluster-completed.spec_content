@@ -15,7 +15,7 @@ spec:
   channel: stable
   cloudConfig:
     awsEBSCSIDriver:
-      version: v1.33.0
+      version: v1.38.1
     manageStorageClasses: true
   cloudControllerManager:
     allocateNodeCIDRs: true
@@ -31,8 +31,8 @@ spec:
   containerd:
     logLevel: info
     runc:
-      version: 1.1.14
-    version: 1.7.22
+      version: 1.2.4
+    version: 1.7.25
   dnsZone: Z1AFAKE1ZON3YO
   etcdClusters:
   - backups:
@@ -43,7 +43,7 @@ spec:
     manager:
       backupRetentionDays: 90
     name: main
-    version: 3.5.13
+    version: 3.5.17
   - backups:
       backupStore: memfs://clusters.example.com/privatecilium.example.com/backups/etcd/events
     etcdMembers:
@@ -52,7 +52,7 @@ spec:
     manager:
       backupRetentionDays: 90
     name: events
-    version: 3.5.13
+    version: 3.5.17
   externalDns:
     provider: dns-controller
   iam:
@@ -204,6 +204,7 @@ spec:
       enableBPFMasquerade: false
       enableEndpointHealthChecking: true
       enableL7Proxy: true
+      enableLocalRedirectPolicy: false
       enableRemoteNodeIdentity: true
       enableUnreachableRoutes: false
       hubble:
@@ -225,7 +226,7 @@ spec:
       sidecarIstioProxyImage: cilium/istio_proxy
       toFqdnsDnsRejectResponseCode: refused
       tunnel: vxlan
-      version: v1.16.2
+      version: v1.16.5
   nodeTerminationHandler:
     cpuRequest: 50m
     deleteSQSMsgIfNodeNotFound: false
